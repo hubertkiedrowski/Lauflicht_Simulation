@@ -1,90 +1,108 @@
-/*
- * File:   newmain.c
- * Author: elberto
- *
- * Created on October 30, 2023, 2:12 PM
- */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define Gruen1 PC1
-#define Gruen2 PC2
-#define Gruen3 PC3
-#define Gruen4 PC4
-#define Gruen5 PC5
-#define Gruen6 PD4
-#define Gruen7 PD5
-#define ROT1 PD6
-#define ROT2 PD7
-#define ROT3 PB0
-#define BUTTON1 PD1
-#define BUTTON2 PB1
-setup()
-{
-  DDRC |= (1 << Gruen1) | (1 << Gruen2) | (1 << Gruen3) | (1 << Gruen4) | (1 << Gruen5);
-  DDRD |= (1 << Gruen6) | (1 << Gruen7) | (1 << ROT1) | (1 << ROT2);
-  DDRB |= (1 << ROT3);
+#define LED1 PC1
+#define LED2 PC2
+#define LED3 PC3
+#define LED4 PC4
+#define LED5 PC5
+#define LED6 PD4
+#define LED7 PD5
+#define LED8 PD6
+#define LED9 PD7
+#define LED10 PB0
 
-  DDRD &= ~(1 << BUTTON1);
-  DDRB &= ~(1 << BUTTON2);
+static unsigned char currentLED = 0;
 
-
-  PCMSK0 |= (1 << PCINT1);
-      PCICR |= (1 << PCIE0); // Aktivierung der Pin Change Interrupts fÃ¼r Gruppe 0
-};
-
-ISR(PCINT0_vect)
-{
-  static unsigned char i = 1;
-  turnOffGreenLEDs();
-  if (i % 2 == 0)
-  {
-    turnOnRedLEDs();
-  }
-  else
-  {
-    turnOffRedLEDs();
-  }
-  i++;
+void init(void){
+    // Konfiguration LEDs als Output
+    DDRC |= ((1 << PC1) | (1 << PC2) | (1 << PC3) | (1 << PC4) | (1 << PC5));
+    DDRD |= ((1 << PD4) | (1 << PD5) | (1 << PD6) | ( 1 << PD7));
+    DDRB |= (1 << PB0);
+   
 }
 
-// Funktionen zur Steuerung der LEDs
-void turnOnGreenLEDs()
-{
-  PORTC |= (1 << Gruen1) | (1 << Gruen2) | (1 << Gruen3) | (1 << Gruen4) | (1 << Gruen5);
-  PORTD |= (1 << Gruen6) | (1 << Gruen7);
-};
+void init_TIMER(void){
+    
+    // Timer Mask -> sagt Interrupt soll gesetzt werden soll, sobald Zähler oben
+    TIMSK1 |= (1 << OCIE1A); // enable T1 Match Interrupt
+    
+    // Hier CTC Mode eingeschaltet _> Max kann selbst gesetzt werden
+    TCCR1B |= (1 << WGM12); // -> im CTC Mode kann man selbst das Max festlegen -> 0 1 0
+    
+    // OCR Wert (Vergleichswert) gesetzt -> bis dieses Max wird gezählt
+    OCR1A = 15625; // --> Top wird mit OCR register gesetzt hier nach 15625Hz (Timer Match nach 1sec))
+    
+    // Prescaler -> auf 1 0 1 die Taktfrequenz von 16Mhz auf 15625Hz (16Mio / 1024) (infos aus Datenblatt)
+    TCCR1B |= (1 << CS12);
+    TCCR1B &= ~(1 << CS11);
+    TCCR1B |= (1 << CS10);
+}
 
-void turnOffGreenLEDs()
-{
-  PORTC &= ~((1 << Gruen1) | (1 << Gruen2) | (1 << Gruen3) | (1 << Gruen4) | (1 << Gruen5));
-  PORTD &= ~((1 << Gruen6) | (1 << Gruen7));
-};
+void turnOFF(void){
+    PORTC &= ~((1 << PC1) | (1 << PC2) | (1 << PC3) | (1 << PC4) | (1 << PC5));
+    PORTD &= ~((1 << PD4) | (1 << PD5) | (1 << PD6) | ( 1 << PD7));
+    PORTB &= ~(1 << PB0);
+}
 
-void turnOnRedLEDs()
-{
-  PORTD |= (1 << ROT1) | (1 << ROT2);
-  PORTB |= (1 << ROT3);
-};
+void turnON(void){
 
-void turnOffRedLEDs()
-{
-  PORTD &= ~((1 << ROT1) | (1 << ROT2));
-  PORTB &= ~(1 << ROT3);
-};
-int main()
-{
-  setup();
-  sei();
-  while (1)
-  {
-    if (!(PIND & (1 << Gruen1)))
-    {
-      turnOnGreenLEDs();
+    switch(currentLED){
+        case 1:
+            PORTC |= (1 << LED1);
+            break;
+        case 2:
+            PORTC |= (1 << LED2);
+            break;
+        case 3:
+            PORTC |= (1 << LED3);
+            break;
+        case 4:
+            PORTC |= (1 << LED4);
+            break;
+        case 5:
+            PORTC |= (1 << LED5);
+            break;
+        case 6:
+            PORTD |= (1 << LED6);
+            break;
+        case 7:
+            PORTD |= (1 << LED7);
+            break;
+        case 8:
+            PORTD |= (1 << LED8);
+            break;
+        case 9:
+            PORTD |= (1 << LED9);
+            break;
+        case 10:
+            PORTB |= (1 << LED10);
+            break;
     }
-  }
+    
 }
 
+ISR(TIMER1_COMPA_vect){
+    turnOFF();
+    
+    currentLED++;
+    
+    if(currentLED > 10){
+        currentLED = 1;
+    }
+    
+    turnON();
+    
+}
+
+int main() {
+    init();
+    init_TIMER();
+    sei();
+           
+    while(1){
+       
+    }
+}
