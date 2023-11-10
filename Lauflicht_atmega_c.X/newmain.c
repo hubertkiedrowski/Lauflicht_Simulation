@@ -17,6 +17,7 @@
 #define Button2 PB1
 
 static unsigned char currentLED = 0;
+static unsigned char isButtonPressed = 0;
 
 unsigned char debounce(unsigned char button)
 {
@@ -30,6 +31,8 @@ unsigned char debounce(unsigned char button)
     }
     if (buttonState <= 15)
     {
+      // Tastendruck erkannt, Zustand zurücksetzen
+      buttonState = 0;
       return 1;
     }
   }
@@ -44,6 +47,8 @@ unsigned char debounce(unsigned char button)
   return 0;
 }
 
+
+
 void initLEDs(void)
 {
   // Konfiguration LEDs als Output
@@ -54,7 +59,10 @@ void initLEDs(void)
 void initButtons(void)
 {
   DDRD &= ~(1 << Button1);
+  PORTD |= (1 << Button1);
+
   DDRB &= ~(1 << Button2);
+  PORTB |= (1 << Button2);
 }
 
 void init_TIMER(void)
@@ -125,9 +133,15 @@ void turnON(void)
 ISR(TIMER1_COMPA_vect)
 {
   turnOFF();
-  if (debounce(Button1))
+  if (debounce(Button1) && !isButtonPressed)
   {
+    isButtonPressed = 1; // Markieren Sie den Button als gedrückt
     currentLED++;
+  }
+  
+  if (!debounce(Button1))
+  {
+    isButtonPressed = 0; // Markieren Sie den Button als nicht gedrückt
   }
 
   if (currentLED > 10)
@@ -137,6 +151,7 @@ ISR(TIMER1_COMPA_vect)
 
   turnON();
 }
+
 
 int main()
 {
